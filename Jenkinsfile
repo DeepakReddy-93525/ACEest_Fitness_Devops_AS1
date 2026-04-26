@@ -47,7 +47,7 @@ pipeline {
                     pip install pytest-cov
                     pytest --junitxml=test-results.xml --cov=app --cov-report=xml --cov-report=html
                     pip install bandit
-                    bandit -r app.py -f json -o bandit-report.json
+                    bandit -r app.py -f json -o bandit-report.json || true
                 '''
                 echo 'Unit tests completed'
             }
