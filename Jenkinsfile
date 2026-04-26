@@ -1,0 +1,147 @@
+pipeline {
+    agent any
+    
+    environment {
+        DOCKER_REGISTRY = 'tdeepakreddy'
+        IMAGE_NAME = 'aceest-app'
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
+        SONARQUBE_SERVER = 'sonarqube-server'
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/your-username/aceest-fitness.git'
+                echo 'Checked out source code'
+            }
+        }
+        
+        stage('Setup Environment') {
+            steps {
+                sh '''
+                    python3 -m venv venv
+                    source venv/bin/activate
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
+                '''
+                echo 'Environment setup completed'
+            }
+        }
+        
+        stage('Code Quality - Linting') {
+            steps {
+                sh '''
+                    source venv/bin/activate
+                    pip install flake8
+                    flake8 app.py test_app.py --count --select=E9,F63,F7,F82 --show-source --statistics
+                    flake8 app.py test_app.py --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+                '''
+                echo 'Code linting completed'
+            }
+        }
+        
+        stage('Unit Testing') {
+            steps {
+                sh '''
+                    source venv/bin/activate
+                    pip install pytest-cov
+                    pytest --junitxml=test-results.xml --cov=app --cov-report=xml --cov-report=html
+                    pip install bandit
+                    bandit -r app.py -f json -o bandit-report.json
+                '''
+                echo 'Unit tests completed'
+            }
+            post {
+                always {
+                    junit 'test-results.xml'
+                    publishCoverage adapters: [coverageAdapter('coverage.xml')], sourceFileResolver: sourceFiles('STORE_LAST_BUILD')
+                    archiveArtifacts artifacts: 'bandit-report.json,coverage.xml,htmlcov/**', allowEmptyArchive: true
+                }
+            }
+        }
+        
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv(env.SONARQUBE_SERVER) {
+                    sh '''
+                        source venv/bin/activate
+                        pip install sonar-scanner
+                        sonar-scanner
+                    '''
+                }
+                echo 'SonarQube analysis completed'
+            }
+        }
+        
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+                echo 'Quality gate passed'
+            }
+        }
+        
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    // Build image with version tags
+                    def image = docker.build("${env.DOCKER_REGISTRY}/${env.IMAGE_NAME}:${env.BUILD_NUMBER}")
+                    
+                    // Tag as latest
+                    image.tag("${env.DOCKER_REGISTRY}/${env.IMAGE_NAME}:latest")
+                    
+                    echo "Docker image built: ${env.DOCKER_REGISTRY}/${env.IMAGE_NAME}:${env.BUILD_NUMBER}"
+                }
+            }
+        }
+        
+        stage('Push to Docker Hub') {
+            steps {
+                script {
+                    // Login to Docker Hub
+                    docker.withRegistry("https://index.docker.io/v1/", "dockerhub-credentials") {
+                        // Push versioned image
+                        docker.image("${env.DOCKER_REGISTRY}/${env.IMAGE_NAME}:${env.BUILD_NUMBER}").push()
+                        
+                        // Push latest tag
+                        docker.image("${env.DOCKER_REGISTRY}/${env.IMAGE_NAME}:latest").push()
+                    }
+                    
+                    echo "Images pushed to Docker Hub:"
+                    echo "- ${env.DOCKER_REGISTRY}/${env.IMAGE_NAME}:${env.BUILD_NUMBER}"
+                    echo "- ${env.DOCKER_REGISTRY}/${env.IMAGE_NAME}:latest"
+                }
+            }
+        }
+        
+        stage('Container Testing') {
+            steps {
+                sh '''
+                    # Pull and test the pushed image
+                    docker run --rm -d --name test-container -p 5000:5000 ${DOCKER_REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}
+                    sleep 10
+                    # Health check
+                    curl -f http://localhost:5000/programs || exit 1
+                    docker stop test-container
+                '''
+                echo 'Container testing completed with Docker Hub image'
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        
+        failure {
+            echo 'Pipeline failed!'
+        }
+        
+        always {
+            echo 'Cleaning up workspace...'
+            cleanWs()
+        }
+    }
+}
