@@ -20,7 +20,7 @@ pipeline {
             steps {
                 sh '''
                     python3 -m venv venv
-                    source venv/bin/activate
+                    . venv/bin/activate
                     pip install --upgrade pip
                     pip install -r requirements.txt
                 '''
@@ -31,7 +31,7 @@ pipeline {
         stage('Code Quality - Linting') {
             steps {
                 sh '''
-                    source venv/bin/activate
+                    . venv/bin/activate
                     pip install flake8
                     flake8 app.py test_app.py --count --select=E9,F63,F7,F82 --show-source --statistics
                     flake8 app.py test_app.py --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
@@ -43,7 +43,7 @@ pipeline {
         stage('Unit Testing') {
             steps {
                 sh '''
-                    source venv/bin/activate
+                    . venv/bin/activate
                     pip install pytest-cov
                     pytest --junitxml=test-results.xml --cov=app --cov-report=xml --cov-report=html
                     pip install bandit
@@ -57,7 +57,7 @@ pipeline {
             steps {
                 withSonarQubeEnv(env.SONARQUBE_SERVER) {
                     sh '''
-                        source venv/bin/activate
+                        . venv/bin/activate
                         pip install sonar-scanner
                         sonar-scanner
                     '''
