@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aceest-app-rolling
+  namespace: aceest-fitness
+  labels:
+    app: aceest-app
+    strategy: rolling
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: aceest-app
+      strategy: rolling
+  template:
+    metadata:
+      labels:
+        app: aceest-app
+        strategy: rolling
+    spec:
+      containers:
+      - name: aceest-app
+        image: tdeepakreddy/aceest-app:latest
+        ports:
+        - containerPort: 5000
+        livenessProbe:
+          httpGet:
+            path: /programs
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /programs
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aceest-app-rolling-service
+  namespace: aceest-fitness
+  labels:
+    app: aceest-app
+    strategy: rolling
+spec:
+  selector:
+    app: aceest-app
+    strategy: rolling
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+  type: LoadBalancer

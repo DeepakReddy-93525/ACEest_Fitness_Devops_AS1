@@ -1,0 +1,144 @@
+# Version A Deployment (Control Group)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aceest-app-version-a
+  namespace: aceest-fitness
+  labels:
+    app: aceest-app
+    version: A
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: aceest-app
+      version: A
+  template:
+    metadata:
+      labels:
+        app: aceest-app
+        version: A
+    spec:
+      containers:
+      - name: aceest-app
+        image: tdeepakreddy/aceest-app:latest
+        ports:
+        - containerPort: 5000
+        env:
+        - name: UI_VERSION
+          value: "A"
+        livenessProbe:
+          httpGet:
+            path: /programs
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /programs
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+# Version B Deployment (Test Group)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aceest-app-version-b
+  namespace: aceest-fitness
+  labels:
+    app: aceest-app
+    version: B
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: aceest-app
+      version: B
+  template:
+    metadata:
+      labels:
+        app: aceest-app
+        version: B
+    spec:
+      containers:
+      - name: aceest-app
+        image: tdeepakreddy/aceest-app:latest
+        ports:
+        - containerPort: 5000
+        env:
+        - name: UI_VERSION
+          value: "B"
+        livenessProbe:
+          httpGet:
+            path: /programs
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /programs
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+# Service for Version A
+apiVersion: v1
+kind: Service
+metadata:
+  name: aceest-app-version-a-service
+  namespace: aceest-fitness
+  labels:
+    app: aceest-app
+    version: A
+spec:
+  selector:
+    app: aceest-app
+    version: A
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+  type: LoadBalancer
+---
+# Service for Version B
+apiVersion: v1
+kind: Service
+metadata:
+  name: aceest-app-version-b-service
+  namespace: aceest-fitness
+  labels:
+    app: aceest-app
+    version: B
+spec:
+  selector:
+    app: aceest-app
+    version: B
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+  type: LoadBalancer
+---
+# A/B Testing Ingress (Traffic Splitting)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aceest-app-ab-testing
+  namespace: aceest-fitness
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-weight: "50"
+spec:
+  rules:
+  - host: aceest-fitness.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: aceest-app-version-a-service
+            port:
+              number: 80

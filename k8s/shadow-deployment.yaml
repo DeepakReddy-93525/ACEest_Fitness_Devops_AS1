@@ -1,0 +1,118 @@
+# Production Deployment (Real Traffic)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aceest-app-production
+  namespace: aceest-fitness
+  labels:
+    app: aceest-app
+    version: production
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: aceest-app
+      version: production
+  template:
+    metadata:
+      labels:
+        app: aceest-app
+        version: production
+    spec:
+      containers:
+      - name: aceest-app
+        image: tdeepakreddy/aceest-app:latest
+        ports:
+        - containerPort: 5000
+        livenessProbe:
+          httpGet:
+            path: /programs
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /programs
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+# Shadow Deployment (Mirrored Traffic Only)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aceest-app-shadow
+  namespace: aceest-fitness
+  labels:
+    app: aceest-app
+    version: shadow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aceest-app
+      version: shadow
+  template:
+    metadata:
+      labels:
+        app: aceest-app
+        version: shadow
+    spec:
+      containers:
+      - name: aceest-app
+        image: tdeepakreddy/aceest-app:latest
+        ports:
+        - containerPort: 5000
+        env:
+        - name: SHADOW_MODE
+          value: "true"
+        livenessProbe:
+          httpGet:
+            path: /programs
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /programs
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+# Production Service (Real User Traffic)
+apiVersion: v1
+kind: Service
+metadata:
+  name: aceest-app-production-service
+  namespace: aceest-fitness
+  labels:
+    app: aceest-app
+    version: production
+spec:
+  selector:
+    app: aceest-app
+    version: production
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+  type: LoadBalancer
+---
+# Shadow Service (For Traffic Mirroring)
+apiVersion: v1
+kind: Service
+metadata:
+  name: aceest-app-shadow-service
+  namespace: aceest-fitness
+  labels:
+    app: aceest-app
+    version: shadow
+spec:
+  selector:
+    app: aceest-app
+    version: shadow
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+  type: ClusterIP  # Internal only
