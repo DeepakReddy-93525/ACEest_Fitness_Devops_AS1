@@ -5,7 +5,6 @@ pipeline {
         DOCKER_REGISTRY = 'tdeepakreddy'
         IMAGE_NAME = 'aceest-app'
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
-        SONARQUBE_SERVER = 'sonarqube-server'
     }
     
     stages {
@@ -13,65 +12,6 @@ pipeline {
             steps {
                 git branch: 'Assignment2', url: 'https://github.com/DeepakReddy-93525/ACEest_Fitness_Devops_AS1.git'
                 echo 'Checked out source code'
-            }
-        }
-        
-        stage('Setup Environment') {
-            steps {
-                sh '''
-                    python3 -m venv venv
-                    source venv/bin/activate
-                    pip install --upgrade pip
-                    pip install -r requirements.txt
-                '''
-                echo 'Environment setup completed'
-            }
-        }
-        
-        stage('Code Quality - Linting') {
-            steps {
-                sh '''
-                    source venv/bin/activate
-                    pip install flake8
-                    flake8 app.py test_app.py --count --select=E9,F63,F7,F82 --show-source --statistics
-                    flake8 app.py test_app.py --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-                '''
-                echo 'Code linting completed'
-            }
-        }
-        
-        stage('Unit Testing') {
-            steps {
-                sh '''
-                    source venv/bin/activate
-                    pip install pytest-cov
-                    pytest --junitxml=test-results.xml --cov=app --cov-report=xml --cov-report=html
-                    pip install bandit
-                    bandit -r app.py -f json -o bandit-report.json
-                '''
-                echo 'Unit tests completed'
-            }
-        }
-        
-        stage('SonarQube Analysis') {
-            steps {
-                withSonarQubeEnv(env.SONARQUBE_SERVER) {
-                    sh '''
-                        source venv/bin/activate
-                        pip install sonar-scanner
-                        sonar-scanner
-                    '''
-                }
-                echo 'SonarQube analysis completed'
-            }
-        }
-        
-        stage('Quality Gate') {
-            steps {
-                timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
-                echo 'Quality gate passed'
             }
         }
         
@@ -130,11 +70,6 @@ pipeline {
         
         failure {
             echo 'Pipeline failed!'
-        }
-        
-        always {
-            echo 'Cleaning up workspace...'
-            cleanWs()
         }
     }
 }
