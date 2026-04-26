@@ -58,7 +58,7 @@ pipeline {
                 withSonarQubeEnv(env.SONARQUBE_SERVER) {
                     sh '''
                         . venv/bin/activate
-                        pip install sonar-scanner
+                        pip install sonar-scanner-cli
                         sonar-scanner
                     '''
                 }
