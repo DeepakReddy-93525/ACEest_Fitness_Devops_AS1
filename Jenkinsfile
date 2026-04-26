@@ -11,7 +11,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/your-username/aceest-fitness.git'
+                git branch: 'Assignment2', url: 'https://github.com/DeepakReddy-93525/ACEest_Fitness_Devops_AS1.git'
                 echo 'Checked out source code'
             }
         }
@@ -50,13 +50,6 @@ pipeline {
                     bandit -r app.py -f json -o bandit-report.json
                 '''
                 echo 'Unit tests completed'
-            }
-            post {
-                always {
-                    junit 'test-results.xml'
-                    publishCoverage adapters: [coverageAdapter('coverage.xml')], sourceFileResolver: sourceFiles('STORE_LAST_BUILD')
-                    archiveArtifacts artifacts: 'bandit-report.json,coverage.xml,htmlcov/**', allowEmptyArchive: true
-                }
             }
         }
         
