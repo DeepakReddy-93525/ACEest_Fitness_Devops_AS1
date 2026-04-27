@@ -9,13 +9,6 @@ pipeline {
     }
     
     stages {
-        stage('Checkout') {
-            steps {
-                git branch: 'Assignment2', url: 'https://github.com/DeepakReddy-93525/ACEest_Fitness_Devops_AS1.git'
-                echo 'Checked out source code'
-            }
-        }
-        
         stage('Setup Environment') {
             steps {
                 sh '''
@@ -87,8 +80,8 @@ pipeline {
                     // Build image with version tags
                     def image = docker.build("${env.DOCKER_REGISTRY}/${env.IMAGE_NAME}:${env.BUILD_NUMBER}")
                     
-                    // Tag as latest
-                    image.tag("${env.DOCKER_REGISTRY}/${env.IMAGE_NAME}:latest")
+                    // Tag as latest using sh command
+                    sh "docker tag ${env.DOCKER_REGISTRY}/${env.IMAGE_NAME}:${env.BUILD_NUMBER} ${env.DOCKER_REGISTRY}/${env.IMAGE_NAME}:latest"
                     
                     echo "Docker image built: ${env.DOCKER_REGISTRY}/${env.IMAGE_NAME}:${env.BUILD_NUMBER}"
                 }
