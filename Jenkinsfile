@@ -52,7 +52,18 @@ pipeline {
                     sh '''
                         export JAVA_HOME=/usr/lib/jvm/jdk-17
                         export PATH=$JAVA_HOME/bin:$PATH
-                        sonar-scanner
+                        sonar-scanner \
+                            -Dsonar.projectKey=aceest-fitness \
+                            -Dsonar.projectName="ACEest Fitness & Gym" \
+                            -Dsonar.projectVersion=1.0 \
+                            -Dsonar.sources=app.py,templates \
+                            -Dsonar.tests=test_app.py \
+                            -Dsonar.exclusions=venv/**,__pycache__/**,.pytest_cache/**,*.pyc,.git/**,*.md,*.docx,*.txt \
+                            -Dsonar.language=py \
+                            -Dsonar.python.coverage.reportPaths=coverage.xml \
+                            -Dsonar.python.xunit.reportPath=test-results.xml \
+                            -Dsonar.python.bandit.reportPaths=bandit-report.json \
+                            -Dsonar.sourceEncoding=UTF-8
                     '''
                 }
                 echo 'SonarQube analysis completed'
